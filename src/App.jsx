@@ -37,7 +37,7 @@ const AppCard = ({ app, index, onOpen, renderStars }) => (
 
 function App() {
   const [appsList, setAppsList] = useState(apps);
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategory, setActiveCategory] = useState('Todos');
   const [selectedApp, setSelectedApp] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨' });
