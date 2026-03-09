@@ -874,23 +874,155 @@
 }
 
 @media (max-width: 768px) {
+  .app-container {
+    padding: 0 1rem;
+  }
+
   .header {
     margin-top: 10px;
+    padding: 0.6rem 1rem;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .header-search {
+    order: 3;
+    max-width: 100%;
+    width: 100%;
+    margin: 0;
+  }
+
+  .logo-icon {
+    font-size: 1.5rem;
   }
 
   .logo h1 {
     display: none;
   }
 
-  .hero-title {
-    font-size: 2.8rem;
-    letter-spacing: -2px;
+  .nav {
+    gap: 1rem;
+  }
+
+  /* Hero Section Mobile */
+  .hero-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    max-height: none;
+    padding-bottom: 10px;
+  }
+
+  .hero-main {
+    height: 220px;
+  }
+
+  .hero-side {
+    grid-template-columns: 1fr 1fr;
+    display: grid;
+    height: 120px;
+    gap: 10px;
+  }
+
+  .hero-overlay {
+    padding: 1rem;
+  }
+
+  .hero-overlay h2 {
+    font-size: 1.4rem;
+  }
+
+  .hero-overlay p {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .hero-overlay.small h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* App grids Mobile (2 columns instead of 1) */
+  .apps-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .app-card-banner {
+    aspect-ratio: 16/10;
+  }
+
+  .app-card-content {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .app-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+    margin-top: -24px;
+    border-radius: 8px;
+  }
+
+  .app-info h4 {
+    font-size: 0.85rem;
+  }
+
+  .app-info p {
+    display: none;
+    /* Hide app description on mobile grid to save space */
+  }
+
+  .app-meta {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .category-tag,
+  .version-tag {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+  }
+
+  .btn-launch {
+    padding: 8px;
+    font-size: 0.8rem;
+    border-radius: 10px;
+  }
+
+  /* Tendencias Mobile */
+  .small-apps-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .small-app-item {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .small-app-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  .small-app-details h4 {
+    font-size: 0.8rem;
+  }
+
+  .small-app-price {
+    font-size: 0.75rem;
   }
 
   .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-header h3 {
+    font-size: 1.1rem;
   }
 
   .category-filter {
