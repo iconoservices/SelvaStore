@@ -43,8 +43,19 @@ function App() {
   const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨' });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [waitingWorker, setWaitingWorker] = useState(null);
 
   const categories = ['Todos', 'Entretenimiento', 'Productividad', 'Utilidad', 'Negocios'];
+
+  useEffect(() => {
+    const onUpdate = (e) => {
+      setUpdateAvailable(true);
+      setWaitingWorker(e.detail);
+    };
+    window.addEventListener('pwa-update-available', onUpdate);
+    return () => window.removeEventListener('pwa-update-available', onUpdate);
+  }, []);
 
   useEffect(() => {
     const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
@@ -84,6 +95,13 @@ function App() {
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setSubmitData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdate = () => {
+    if (waitingWorker && waitingWorker.waiting) {
+      waitingWorker.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+    setUpdateAvailable(false);
   };
 
   const handleSubmitNewApp = () => {
@@ -152,6 +170,29 @@ function App() {
     >
       <div className="bg-spotlight"></div>
       <PWAInstall />
+
+      {/* PWA Update Toast */}
+      {updateAvailable && (
+        <div className="update-toast animate-fade-in glass-container">
+          <div className="update-toast-content">
+            <span style={{ fontSize: '1.5rem' }}>🌿</span>
+            <div>
+              <strong>Hay una nueva versión disponible</strong>
+              <p style={{ margin: '5px 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Actualiza para disfrutar de las últimas mejoras y funciones.
+              </p>
+            </div>
+          </div>
+          <div className="update-toast-actions">
+            <button className="btn-glass-sm" onClick={() => setUpdateAvailable(false)} style={{ background: 'rgba(255,255,255,0.05)' }}>
+              Ignorar
+            </button>
+            <button className="btn-primary" style={{ padding: '8px 16px', borderRadius: '12px' }} onClick={handleUpdate}>
+              Actualizar Ahora
+            </button>
+          </div>
+        </div>
+      )}
 
       <header className="header glass-container animate-fade-in">
         <div className="logo">
