@@ -43,6 +43,7 @@ function App() {
   const [selectedApp, setSelectedApp] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isDevMode, setIsDevMode] = useState(false);
+  const [view, setView] = useState('store'); // 'store' o 'admin'
   const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '' });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,9 +120,9 @@ function App() {
   };
 
   const handleOpenSubmit = () => {
-    const password = prompt("Ingrese la clave de administrador para acceder al portal de Selva Store:");
-    if (password === "selva2026") { // Cambia esto a tu contraseña preferida
-      setShowSubmitModal(true);
+    const password = prompt("Ingrese la clave de administrador para acceder al panel de Selva Store:");
+    if (password === "selva2026") {
+      setView('admin');
     } else {
       alert("Acceso denegado.");
     }
@@ -160,17 +161,25 @@ function App() {
       // Guardar en Firestore
       await addDoc(collection(db, 'apps'), newApp);
 
-      // También guardar en LocalStorage como respaldo rápido
-      const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
-      localStorage.setItem('selva_store_user_apps', JSON.stringify([...savedApps, newApp]));
-
       setShowSubmitModal(false);
-      setSubmitData({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad' });
+      setSubmitData({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '' });
     } catch (err) {
       console.error("Error al guardar en Firestore:", err);
       // Fallback a solo local si no hay Firebase configurado
-      setAppsList(prev => [...prev, { id: Date.now(), ...newApp }]);
+      const localApp = { id: Date.now(), ...newApp };
+      setAppsList(prev => [...prev, localApp]);
+      const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
+      localStorage.setItem('selva_store_user_apps', JSON.stringify([...savedApps, localApp]));
       setShowSubmitModal(false);
+    }
+  };
+
+  const handleDeleteApp = async (id) => {
+    if (window.confirm("¿Estás seguro de que quieres eliminar esta aplicación?")) {
+      // Nota: Para borrar en Firebase necesitamos el ID del documento
+      // Por ahora lo filtramos de la lista local
+      setAppsList(prev => prev.filter(app => app.id !== id));
+      // TODO: Implementar deleteDoc(doc(db, 'apps', id)) si tenemos los IDs de Firestore
     }
   };
 
@@ -271,9 +280,9 @@ function App() {
           </div>
         </div>
         <nav className="nav">
-          <button className="nav-link active">Tienda</button>
+          <button className={`nav-link ${view === 'store' ? 'active' : ''}`} onClick={() => setView('store')}>Tienda</button>
           {isDevMode && (
-            <button className="nav-link" onClick={handleOpenSubmit}>Desarrollador</button>
+            <button className={`nav-link ${view === 'admin' ? 'active' : ''}`} onClick={handleOpenSubmit}>Desarrollador</button>
           )}
           <div className="user-profile">
             <div className="avatar">JD</div>
@@ -311,7 +320,64 @@ function App() {
         </section>
 
         <section className="store-section">
-          {searchTerm ? (
+          {view === 'admin' ? (
+            <div className="admin-dashboard animate-fade-in">
+              <div className="dashboard-header">
+                <h3>Panel de Administración</h3>
+                <button className="btn-primary" onClick={() => setShowSubmitModal(true)}>+ Añadir Nueva App</button>
+              </div>
+
+              <div className="dashboard-stats">
+                <div className="stat-card">
+                  <span className="label">Total Apps</span>
+                  <span className="value">{appsList.length}</span>
+                </div>
+                <div className="stat-card">
+                  <span className="label">Categorías</span>
+                  <span className="value">{categories.length - 1}</span>
+                </div>
+                <div className="stat-card">
+                  <span className="label">Estado del Servidor</span>
+                  <span className="value" style={{ color: '#00ff88', fontSize: '1.2rem' }}>Online 🟢</span>
+                </div>
+              </div>
+
+              <div className="admin-table-container glass-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Aplicación</th>
+                      <th>Categoría</th>
+                      <th>Estado</th>
+                      <th>Versión</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {appsList.map(app => (
+                      <tr key={app.id}>
+                        <td>
+                          <div className="admin-app-row">
+                            <div className="admin-app-icon" style={{ backgroundColor: `${app.color}15`, color: app.color }}>
+                              {app.icon}
+                            </div>
+                            <span>{app.name}</span>
+                          </div>
+                        </td>
+                        <td>{app.category}</td>
+                        <td><span className="badge-featured" style={{ background: app.color, color: '#000' }}>{app.status || 'Activo'}</span></td>
+                        <td>{app.version}</td>
+                        <td>
+                          <button className="btn-admin-action">Editar</button>
+                          <button className="btn-admin-action btn-admin-delete" onClick={() => handleDeleteApp(app.id)}>Eliminar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : searchTerm ? (
             <div className="search-results">
               <div className="section-header">
                 <h3>Resultados para "{searchTerm}"</h3>
