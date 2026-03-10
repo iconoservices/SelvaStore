@@ -5,6 +5,15 @@ import { db } from './firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './App.css';
 
+const AppIcon = ({ icon, color, className = "app-icon" }) => {
+  const isUrl = typeof icon === 'string' && (icon.startsWith('http') || icon.startsWith('/') || icon.includes('.'));
+  return (
+    <div className={className} style={{ backgroundColor: `${color}15`, color: color }}>
+      {isUrl ? <img src={icon} alt="icon" /> : icon}
+    </div>
+  );
+};
+
 const AppCard = ({ app, index, onOpen, renderStars }) => (
   <div
     className="app-card glass-container animate-fade-in"
@@ -16,9 +25,7 @@ const AppCard = ({ app, index, onOpen, renderStars }) => (
       <div className="status-badge" style={{ backgroundColor: app.color }}>{app.status}</div>
     </div>
     <div className="app-card-content">
-      <div className="app-icon" style={{ backgroundColor: `${app.color}15`, color: app.color }}>
-        {app.icon}
-      </div>
+      <AppIcon icon={app.icon} color={app.color} />
       <div className="app-info">
         <div className="app-header-row">
           <h4>{app.name}</h4>
@@ -49,7 +56,7 @@ function App() {
   const [submitData, setSubmitData] = useState({
     name: '',
     link: '',
-    icon: '✨',
+    icon: 'https://cdn-icons-png.flaticon.com/512/2589/2589175.png', // Fallback profesional
     description: '',
     category: 'Utilidad',
     image: '',
@@ -151,7 +158,7 @@ function App() {
     const appData = {
       name: submitData.name,
       description: submitData.description || 'Nueva aplicación añadida a la red de Selva Store.',
-      icon: submitData.icon || '🚀',
+      icon: submitData.icon || 'https://cdn-icons-png.flaticon.com/512/2589/2589175.png',
       category: submitData.category || 'Utilidad',
       color: submitData.color || '#00ff88',
       status: 'Activo',
@@ -178,7 +185,7 @@ function App() {
       setShowSubmitModal(false);
       setIsEditing(false);
       setEditingId(null);
-      setSubmitData({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '', color: '#00ff88' });
+      setSubmitData({ name: '', link: '', icon: 'https://cdn-icons-png.flaticon.com/512/2589/2589175.png', description: '', category: 'Utilidad', image: '', color: '#00ff88' });
     } catch (err) {
       console.error("Error al guardar en Firestore:", err);
       // Fallback local
@@ -404,9 +411,7 @@ function App() {
                       <tr key={app.id}>
                         <td>
                           <div className="admin-app-row">
-                            <div className="admin-app-icon" style={{ backgroundColor: `${app.color}15`, color: app.color }}>
-                              {app.icon}
-                            </div>
+                            <AppIcon icon={app.icon} color={app.color} className="admin-app-icon" />
                             <span>{app.name}</span>
                           </div>
                         </td>
@@ -445,9 +450,7 @@ function App() {
                 <div className="small-apps-list">
                   {appsList.slice(0, 6).map((app, index) => (
                     <div key={app.id} className="small-app-item" onClick={() => handleOpenApp(app)}>
-                      <div className="small-app-icon" style={{ backgroundColor: `${app.color}15`, color: app.color }}>
-                        {app.icon}
-                      </div>
+                      <AppIcon icon={app.icon} color={app.color} className="small-app-icon" />
                       <div className="small-app-details">
                         <h4>{app.name}</h4>
                         <span className="small-app-cat">{app.category}</span>
@@ -488,9 +491,7 @@ function App() {
           <div className="modal-content glass-container" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleCloseModal}>&times;</button>
             <div className="modal-header">
-              <div className="modal-icon" style={{ backgroundColor: `${selectedApp.color}15`, color: selectedApp.color }}>
-                {selectedApp.icon}
-              </div>
+              <AppIcon icon={selectedApp.icon} color={selectedApp.color} className="modal-icon" />
               <div className="modal-title-area">
                 <h2>{selectedApp.name}</h2>
                 <span className="modal-category">{selectedApp.category}</span>
