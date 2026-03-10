@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
 import { apps } from './appsData';
 import PWAInstall from './PWAInstall';
 import { db } from './firebase';
-import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import './App.css';
 
 const AppCard = ({ app, index, onOpen, renderStars }) => (
@@ -44,7 +43,17 @@ function App() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isDevMode, setIsDevMode] = useState(false);
   const [view, setView] = useState('store'); // 'store' o 'admin'
-  const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '' });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [submitData, setSubmitData] = useState({
+    name: '',
+    link: '',
+    icon: '✨',
+    description: '',
+    category: 'Utilidad',
+    image: '',
+    color: '#00ff88'
+  });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -63,25 +72,20 @@ function App() {
 
   useEffect(() => {
     // Sincronización en tiempo real con Firestore
-    const q = query(collection(db, 'apps'), orderBy('rating', 'desc'));
+    // Ordenamos por fecha de creación (createdAt) descendente para que las nuevas salgan primero
+    const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const dbApps = [];
       querySnapshot.forEach((doc) => {
         dbApps.push({ id: doc.id, ...doc.data() });
       });
 
-      // Combinar apps estáticas con las de la base de datos
-      // Usamos las de la DB como prioridad o extensión
-      if (dbApps.length > 0) {
-        setAppsList([...apps, ...dbApps]);
-      } else {
-        setAppsList(apps);
-      }
+      // ALGORITMO: Combinar dinámicas primero las de la DB (favor de usuario) y luego las estáticas
+      setAppsList([...dbApps, ...apps]);
     }, (error) => {
       console.error("Error al sincronizar con Firestore:", error);
-      // Si falla Firestore (por config vacía), usamos LocalStorage como respaldo
       const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
-      setAppsList([...apps, ...savedApps]);
+      setAppsList([...savedApps, ...apps]);
     });
 
     return () => unsubscribe();
@@ -143,44 +147,75 @@ function App() {
   const handleSubmitNewApp = async () => {
     if (!submitData.name || !submitData.link) return;
 
-    const newApp = {
+    const appData = {
       name: submitData.name,
       description: submitData.description || 'Nueva aplicación añadida a la red de Selva Store.',
       icon: submitData.icon || '🚀',
       category: submitData.category || 'Utilidad',
-      color: submitData.color || '#ffffff',
+      color: submitData.color || '#00ff88',
       status: 'Activo',
-      version: '1.0.0',
+      version: submitData.version || '1.0.0',
       link: submitData.link,
-      rating: 5.0,
+      rating: submitData.rating || 5.0,
       image: submitData.image || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800',
-      createdAt: new Date().toISOString()
+      createdAt: isEditing ? (submitData.createdAt || new Date().toISOString()) : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     try {
-      // Guardar en Firestore
-      await addDoc(collection(db, 'apps'), newApp);
+      if (isEditing && editingId) {
+        // ACTUALIZAR EXISTENTE
+        const docRef = doc(db, 'apps', editingId);
+        await updateDoc(docRef, appData);
+        alert("¡Aplicación actualizada con éxito!");
+      } else {
+        // AÑADIR NUEVA
+        await addDoc(collection(db, 'apps'), appData);
+        alert("¡Aplicación añadida a la red!");
+      }
 
       setShowSubmitModal(false);
-      setSubmitData({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '' });
+      setIsEditing(false);
+      setEditingId(null);
+      setSubmitData({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '', color: '#00ff88' });
     } catch (err) {
       console.error("Error al guardar en Firestore:", err);
-      // Fallback a solo local si no hay Firebase configurado
-      const localApp = { id: Date.now(), ...newApp };
-      setAppsList(prev => [...prev, localApp]);
-      const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
-      localStorage.setItem('selva_store_user_apps', JSON.stringify([...savedApps, localApp]));
+      // Fallback local
+      alert("Error guardando en la nube. Se guardó localmente.");
+      const localApp = { id: editingId || Date.now(), ...appData };
+      setAppsList(prev => isEditing ? prev.map(a => a.id === editingId ? localApp : a) : [localApp, ...prev]);
       setShowSubmitModal(false);
     }
   };
 
   const handleDeleteApp = async (id) => {
-    if (window.confirm("¿Estás seguro de que quieres eliminar esta aplicación?")) {
-      // Nota: Para borrar en Firebase necesitamos el ID del documento
-      // Por ahora lo filtramos de la lista local
-      setAppsList(prev => prev.filter(app => app.id !== id));
-      // TODO: Implementar deleteDoc(doc(db, 'apps', id)) si tenemos los IDs de Firestore
+    if (window.confirm("¿Estás seguro de que quieres eliminar esta aplicación para SIEMPRE de la nube?")) {
+      try {
+        await deleteDoc(doc(db, 'apps', id));
+        // El onSnapshot actualizará la lista automáticamente
+      } catch (err) {
+        console.error("Error al eliminar de Firestore:", err);
+        setAppsList(prev => prev.filter(app => app.id !== id));
+      }
     }
+  };
+
+  const handleEditApp = (app) => {
+    setSubmitData({
+      name: app.name,
+      link: app.link,
+      icon: app.icon,
+      description: app.description,
+      category: app.category,
+      image: app.image,
+      color: app.color || '#00ff88',
+      version: app.version,
+      rating: app.rating,
+      createdAt: app.createdAt
+    });
+    setEditingId(app.id);
+    setIsEditing(true);
+    setShowSubmitModal(true);
   };
 
   const handleExtractManifest = async () => {
@@ -205,8 +240,8 @@ function App() {
         }
       }
 
-      // Buscar si tiene screenshots para usarlos como miniatura principal (thumbnail)
-      let screenshotUrl = iconUrl; // Por defecto el icono
+      // Banner (screenshot para fondo)
+      let screenshotUrl = '';
       if (manifest.screenshots && manifest.screenshots.length > 0) {
         const screen = manifest.screenshots[0];
         const sUrl = typeof screen === 'string' ? screen : screen.src;
@@ -218,7 +253,8 @@ function App() {
         name: manifest.short_name || manifest.name || prev.name,
         description: manifest.description || prev.description,
         color: manifest.theme_color || prev.color,
-        image: screenshotUrl || prev.image
+        icon: iconUrl || prev.icon, // ICONO mapeado a ICONO
+        image: screenshotUrl || prev.image // SCREENSHOT mapeado a BANNER
       }));
     } catch (err) {
       console.log("No se pudo extraer el manifiesto automáticamente", err);
@@ -377,7 +413,7 @@ function App() {
                         <td><span className="badge-featured" style={{ background: app.color, color: '#000' }}>{app.status || 'Activo'}</span></td>
                         <td>{app.version}</td>
                         <td>
-                          <button className="btn-admin-action">Editar</button>
+                          <button className="btn-admin-action" onClick={() => handleEditApp(app)}>Editar</button>
                           <button className="btn-admin-action btn-admin-delete" onClick={() => handleDeleteApp(app.id)}>Eliminar</button>
                         </td>
                       </tr>
@@ -504,32 +540,27 @@ function App() {
       {showSubmitModal && (
         <div className="modal-overlay animate-fade-in" onClick={handleCloseModal}>
           <div className="modal-content glass-container" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={handleCloseModal}>&times;</button>
             <div className="modal-header">
-              <div className="modal-icon" style={{ backgroundColor: '#00ff8815', color: '#00ff88' }}>
-                🚀
-              </div>
-              <div className="modal-title-area">
-                <h2>Submit Your App</h2>
-                <span className="modal-category">Developer Portal</span>
-              </div>
+              <span className="logo-icon">🌿</span>
+              <h2>{isEditing ? 'Editar Aplicación' : 'Añadir Nueva App'}</h2>
+              <button className="modal-close" onClick={() => { setShowSubmitModal(false); setIsEditing(false); }}>&times;</button>
             </div>
             <div className="modal-body">
-              <p>¿Tienes una PWA? Pega el link y nosotros extraeremos los datos automáticamente.</p>
               <div className="submit-form">
                 <div className="input-group">
-                  <label>URL de la Aplicación</label>
+                  <label>URL de la Aplicación (PWA)</label>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <input type="text" name="link" value={submitData.link} onChange={handleFormChange} placeholder="http://localhost:4005" className="glass-input" style={{ flex: 1 }} />
+                    <input type="text" name="link" value={submitData.link} onChange={handleFormChange} placeholder="http://mi-app.com" className="glass-input" style={{ flex: 1 }} />
                     <button className="btn-extract" onClick={handleExtractManifest}>Auto-detect ⚡</button>
                   </div>
                 </div>
-                <div className="input-group" style={{ display: 'flex', flexDirection: 'row', gap: '15px' }}>
+
+                <div className="input-group" style={{ display: 'flex', gap: '15px' }}>
                   <div style={{ flex: 1 }}>
                     <label>Nombre de la App</label>
                     <input type="text" name="name" value={submitData.name} onChange={handleFormChange} placeholder="Ej. SelvaTools" className="glass-input" style={{ width: '100%', marginTop: '8px' }} />
                   </div>
-                  <div style={{ width: '120px' }}>
+                  <div style={{ width: '140px' }}>
                     <label>Categoría</label>
                     <select name="category" value={submitData.category} onChange={handleFormChange} className="glass-input" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
                       <option value="Utilidad">Utilidad</option>
@@ -538,25 +569,34 @@ function App() {
                       <option value="Negocios">Negocios</option>
                     </select>
                   </div>
-                  <div style={{ width: '80px' }}>
-                    <label>Icono</label>
-                    <input type="text" name="icon" value={submitData.icon} onChange={handleFormChange} maxLength={2} className="glass-input" style={{ width: '100%', marginTop: '8px', textAlign: 'center', fontSize: '1.2rem', padding: '10px' }} />
+                </div>
+
+                <div className="input-group" style={{ display: 'flex', gap: '15px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label>Icono URL (o Emoji)</label>
+                    <input type="text" name="icon" value={submitData.icon} onChange={handleFormChange} placeholder="https://mi-icono.png o ✨" className="glass-input" style={{ width: '100%', marginTop: '8px' }} />
+                  </div>
+                  <div style={{ width: '100px' }}>
+                    <label>Color Marca</label>
+                    <input type="color" name="color" value={submitData.color} onChange={handleFormChange} className="glass-input" style={{ width: '100%', height: '40px', marginTop: '8px', padding: '2px' }} />
                   </div>
                 </div>
+
                 <div className="input-group">
-                  <label>Descripción Corta</label>
-                  <textarea name="description" value={submitData.description} onChange={handleFormChange} placeholder="Describe qué hace tu app..." className="glass-input" style={{ width: '100%', marginTop: '8px', minHeight: '60px', resize: 'none' }} />
+                  <label>Imagen de Banner (Link)</label>
+                  <input type="text" name="image" value={submitData.image} onChange={handleFormChange} placeholder="https://ejemplo.com/fondo.jpg" className="glass-input" style={{ width: '100%', marginTop: '8px' }} />
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '5px' }}>Dejar vacío para usar fondo aleatorio.</p>
                 </div>
+
                 <div className="input-group">
-                  <label>URL de la Miniatura (Thumbnail / Banner)</label>
-                  <input type="text" name="image" value={submitData.image} onChange={handleFormChange} placeholder="https://ejemplo.com/imagen.jpg" className="glass-input" style={{ width: '100%', marginTop: '8px' }} />
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '5px' }}>Si dejas este campo vacío, usaremos una imagen aleatoria profesional de Unsplash.</p>
+                  <label>Descripción del Producto</label>
+                  <textarea name="description" value={submitData.description} onChange={handleFormChange} placeholder="¿Qué hace tu app especial?" className="glass-input" style={{ width: '100%', marginTop: '8px', minHeight: '80px', resize: 'none' }} />
                 </div>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn-install" style={{ '--accent': '#00ff88', opacity: (!submitData.name || !submitData.link) && 0.5 }} onClick={handleSubmitNewApp}>
-                Añadir a la Tienda
+              <button className="btn-install" style={{ '--accent': '#00ff88' }} onClick={handleSubmitNewApp}>
+                {isEditing ? 'Guardar Cambios' : 'Añadir a la Tienda'}
               </button>
             </div>
           </div>
