@@ -195,13 +195,22 @@ function App() {
       const manifest = JSON.parse(data.contents);
 
       // Buscar el mejor icono (buscando el más grande o 192px)
-      let bestIcon = '📱';
       let iconUrl = '';
       if (manifest.icons && manifest.icons.length > 0) {
-        const icon = manifest.icons.find(i => i.sizes && i.sizes.includes('192x192')) || manifest.icons[0];
+        const icon = manifest.icons.find(i => i.sizes && i.sizes.includes('192x192')) ||
+          manifest.icons.find(i => i.sizes && i.sizes.includes('512x512')) ||
+          manifest.icons[0];
         if (icon.src) {
           iconUrl = icon.src.startsWith('http') ? icon.src : `${cleanUrl}/${icon.src.replace(/^\//, '')}`;
         }
+      }
+
+      // Buscar si tiene screenshots para usarlos como miniatura principal (thumbnail)
+      let screenshotUrl = iconUrl; // Por defecto el icono
+      if (manifest.screenshots && manifest.screenshots.length > 0) {
+        const screen = manifest.screenshots[0];
+        const sUrl = typeof screen === 'string' ? screen : screen.src;
+        screenshotUrl = sUrl.startsWith('http') ? sUrl : `${cleanUrl}/${sUrl.replace(/^\//, '')}`;
       }
 
       setSubmitData(prev => ({
@@ -209,7 +218,7 @@ function App() {
         name: manifest.short_name || manifest.name || prev.name,
         description: manifest.description || prev.description,
         color: manifest.theme_color || prev.color,
-        image: iconUrl || prev.image
+        image: screenshotUrl || prev.image
       }));
     } catch (err) {
       console.log("No se pudo extraer el manifiesto automáticamente", err);
@@ -536,7 +545,12 @@ function App() {
                 </div>
                 <div className="input-group">
                   <label>Descripción Corta</label>
-                  <textarea name="description" value={submitData.description} onChange={handleFormChange} placeholder="Describe qué hace tu app..." className="glass-input" style={{ width: '100%', marginTop: '8px', minHeight: '80px', resize: 'none' }} />
+                  <textarea name="description" value={submitData.description} onChange={handleFormChange} placeholder="Describe qué hace tu app..." className="glass-input" style={{ width: '100%', marginTop: '8px', minHeight: '60px', resize: 'none' }} />
+                </div>
+                <div className="input-group">
+                  <label>URL de la Miniatura (Thumbnail / Banner)</label>
+                  <input type="text" name="image" value={submitData.image} onChange={handleFormChange} placeholder="https://ejemplo.com/imagen.jpg" className="glass-input" style={{ width: '100%', marginTop: '8px' }} />
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '5px' }}>Si dejas este campo vacío, usaremos una imagen aleatoria profesional de Unsplash.</p>
                 </div>
               </div>
             </div>
