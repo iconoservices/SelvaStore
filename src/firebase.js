@@ -1,15 +1,14 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// TODO: Reemplaza con tus claves de Firebase Console
-// Configuración de la aplicación Firebase de tu proyecto
 const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "TU_AUTH_DOMAIN",
-    projectId: "TU_PROJECT_ID",
-    storageBucket: "TU_STORAGE_BUCKET",
-    messagingSenderId: "TU_MESSAGING_SENDER_ID",
-    appId: "TU_APP_ID"
+    apiKey: "AIzaSyAohpZNf3EdRk840oMhcL4gt6gYTD48DrQ",
+    authDomain: "selva-store-c32f4.firebaseapp.com",
+    projectId: "selva-store-c32f4",
+    storageBucket: "selva-store-c32f4.firebasestorage.app",
+    messagingSenderId: "434956243901",
+    appId: "1:434956243901:web:3df715dcc12853121238d4",
+    measurementId: "G-R0C144JVZB"
 };
 
 // Inicializar Firebase
