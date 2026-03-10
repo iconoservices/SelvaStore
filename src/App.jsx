@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { apps } from './appsData';
 import PWAInstall from './PWAInstall';
 import { db } from './firebase';
