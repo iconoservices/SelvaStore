@@ -205,23 +205,19 @@ function App() {
 
     try {
       if (isEditing && editingId) {
-        // ACTUALIZAR EXISTENTE
         const docRef = doc(db, 'apps', editingId);
         await updateDoc(docRef, appData);
-        alert("¡Aplicación actualizada con éxito!");
       } else {
-        // AÑADIR NUEVA
         await addDoc(collection(db, 'apps'), appData);
-        alert("¡Aplicación añadida a la red!");
       }
-
+      
+      alert(isEditing ? "¡Aplicación actualizada con éxito!" : "¡Aplicación añadida a la red!");
       setShowSubmitModal(false);
       setIsEditing(false);
       setEditingId(null);
       setSubmitData({ name: '', link: '', icon: 'https://cdn-icons-png.flaticon.com/512/2589/2589175.png', description: '', category: 'Utilidad', image: '', color: '#00ff88' });
     } catch (err) {
       console.error("Error al guardar en Firestore:", err);
-      // Fallback local
       alert("Error guardando en la nube. Se guardó localmente.");
       const localApp = { id: editingId || Date.now(), ...appData };
       setAppsList(prev => isEditing ? prev.map(a => a.id === editingId ? localApp : a) : [localApp, ...prev]);
@@ -283,15 +279,20 @@ function App() {
       const data = await response.json();
       const manifest = JSON.parse(data.contents);
 
-      // Buscar el mejor icono (buscando el más grande o 192px)
+      // Icono: Buscar en manifest -> Si no, intentar Favicon
       let iconUrl = '';
       if (manifest.icons && manifest.icons.length > 0) {
-        const icon = manifest.icons.find(i => i.sizes && i.sizes.includes('192x192')) ||
-          manifest.icons.find(i => i.sizes && i.sizes.includes('512x512')) ||
-          manifest.icons[0];
+        const icon = manifest.icons.find(i => i.sizes?.includes('192')) ||
+                    manifest.icons.find(i => i.sizes?.includes('512')) ||
+                    manifest.icons[0];
         if (icon.src) {
           iconUrl = icon.src.startsWith('http') ? icon.src : `${cleanUrl}/${icon.src.replace(/^\//, '')}`;
         }
+      }
+
+      // Fallback a favicon si no hay icono en manifest
+      if (!iconUrl) {
+        iconUrl = `${cleanUrl}/favicon.ico`;
       }
 
       // Banner (screenshot para fondo)
@@ -307,11 +308,16 @@ function App() {
         name: manifest.short_name || manifest.name || prev.name,
         description: manifest.description || prev.description,
         color: manifest.theme_color || prev.color,
-        icon: iconUrl || prev.icon, // ICONO mapeado a ICONO
-        image: screenshotUrl || prev.image // SCREENSHOT mapeado a BANNER
+        icon: iconUrl || prev.icon,
+        image: screenshotUrl || prev.image
       }));
     } catch (err) {
-      console.log("No se pudo extraer el manifiesto automáticamente", err);
+      console.log("No se pudo extraer el manifiesto, intentando favicon básico...");
+      const cleanUrl = submitData.link.replace(/\/$/, '');
+      setSubmitData(prev => ({
+        ...prev,
+        icon: prev.icon.includes('flaticon') ? `${cleanUrl}/favicon.ico` : prev.icon
+      }));
     }
   };
 
@@ -455,7 +461,7 @@ function App() {
                   </thead>
                   <tbody>
                     {appsList.map(app => (
-                      <tr key={app.id}>
+                      <tr key={app.id || app.name}>
                         <td>
                           <div className="admin-app-row">
                             <AppIcon icon={app.icon} color={app.color} className="admin-app-icon" />
@@ -467,7 +473,7 @@ function App() {
                         <td>{app.version}</td>
                         <td>
                           <button className="btn-admin-action" onClick={() => handleEditApp(app)}>Editar</button>
-                          <button className="btn-admin-action btn-admin-delete" onClick={() => handleDeleteApp(app.id)}>Eliminar</button>
+                          <button className="btn-admin-action btn-admin-delete" onClick={() => handleDeleteApp(app.id || app.name)}>Eliminar</button>
                         </td>
                       </tr>
                     ))}
