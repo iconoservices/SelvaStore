@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apps } from './appsData';
 import PWAInstall from './PWAInstall';
+import { db } from './firebase';
+import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 import './App.css';
 
 const AppCard = ({ app, index, onOpen, renderStars }) => (
@@ -40,7 +42,7 @@ function App() {
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [selectedApp, setSelectedApp] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨' });
+  const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '' });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -58,10 +60,29 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
-    if (savedApps.length > 0) {
+    // Sincronización en tiempo real con Firestore
+    const q = query(collection(db, 'apps'), orderBy('rating', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const dbApps = [];
+      querySnapshot.forEach((doc) => {
+        dbApps.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Combinar apps estáticas con las de la base de datos
+      // Usamos las de la DB como prioridad o extensión
+      if (dbApps.length > 0) {
+        setAppsList([...apps, ...dbApps]);
+      } else {
+        setAppsList(apps);
+      }
+    }, (error) => {
+      console.error("Error al sincronizar con Firestore:", error);
+      // Si falla Firestore (por config vacía), usamos LocalStorage como respaldo
+      const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
       setAppsList([...apps, ...savedApps]);
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -104,44 +125,68 @@ function App() {
     setUpdateAvailable(false);
   };
 
-  const handleSubmitNewApp = () => {
+  const handleSubmitNewApp = async () => {
     if (!submitData.name || !submitData.link) return;
 
     const newApp = {
-      id: submitData.name.toLowerCase().replace(/\s+/g, '-'),
       name: submitData.name,
-      description: 'Nueva aplicación añadida a la red de Selva Store.',
+      description: submitData.description || 'Nueva aplicación añadida a la red de Selva Store.',
       icon: submitData.icon || '🚀',
-      category: 'Utilidad', // Default
-      color: '#ffffff', // Default white glass
-      status: 'Revisión',
+      category: submitData.category || 'Utilidad',
+      color: submitData.color || '#ffffff',
+      status: 'Activo',
       version: '1.0.0',
       link: submitData.link,
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800'
+      rating: 5.0,
+      image: submitData.image || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=800',
+      createdAt: new Date().toISOString()
     };
 
-    const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
-    localStorage.setItem('selva_store_user_apps', JSON.stringify([...savedApps, newApp]));
+    try {
+      // Guardar en Firestore
+      await addDoc(collection(db, 'apps'), newApp);
 
-    setAppsList(prev => [...prev, newApp]);
-    setShowSubmitModal(false);
-    setSubmitData({ name: '', link: '', icon: '✨' });
+      // También guardar en LocalStorage como respaldo rápido
+      const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
+      localStorage.setItem('selva_store_user_apps', JSON.stringify([...savedApps, newApp]));
+
+      setShowSubmitModal(false);
+      setSubmitData({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad' });
+    } catch (err) {
+      console.error("Error al guardar en Firestore:", err);
+      // Fallback a solo local si no hay Firebase configurado
+      setAppsList(prev => [...prev, { id: Date.now(), ...newApp }]);
+      setShowSubmitModal(false);
+    }
   };
 
   const handleExtractManifest = async () => {
     if (!submitData.link) return;
     try {
-      // Intentar obtener el manifiesto usando un proxy de CORS
       const proxy = 'https://api.allorigins.win/get?url=';
-      const manifestUrl = `${submitData.link}/manifest.json`;
+      const cleanUrl = submitData.link.replace(/\/$/, '');
+      const manifestUrl = `${cleanUrl}/manifest.json`;
+
       const response = await fetch(`${proxy}${encodeURIComponent(manifestUrl)}`);
       const data = await response.json();
       const manifest = JSON.parse(data.contents);
 
+      // Buscar el mejor icono (buscando el más grande o 192px)
+      let bestIcon = '📱';
+      let iconUrl = '';
+      if (manifest.icons && manifest.icons.length > 0) {
+        const icon = manifest.icons.find(i => i.sizes && i.sizes.includes('192x192')) || manifest.icons[0];
+        if (icon.src) {
+          iconUrl = icon.src.startsWith('http') ? icon.src : `${cleanUrl}/${icon.src.replace(/^\//, '')}`;
+        }
+      }
+
       setSubmitData(prev => ({
         ...prev,
         name: manifest.short_name || manifest.name || prev.name,
-        icon: '📱' // Por ahora emoji, pero detectado
+        description: manifest.description || prev.description,
+        color: manifest.theme_color || prev.color,
+        image: iconUrl || prev.image
       }));
     } catch (err) {
       console.log("No se pudo extraer el manifiesto automáticamente", err);
@@ -393,10 +438,23 @@ function App() {
                     <label>Nombre de la App</label>
                     <input type="text" name="name" value={submitData.name} onChange={handleFormChange} placeholder="Ej. SelvaTools" className="glass-input" style={{ width: '100%', marginTop: '8px' }} />
                   </div>
+                  <div style={{ width: '120px' }}>
+                    <label>Categoría</label>
+                    <select name="category" value={submitData.category} onChange={handleFormChange} className="glass-input" style={{ width: '100%', marginTop: '8px', padding: '10px' }}>
+                      <option value="Utilidad">Utilidad</option>
+                      <option value="Entretenimiento">Entretenimiento</option>
+                      <option value="Productividad">Productividad</option>
+                      <option value="Negocios">Negocios</option>
+                    </select>
+                  </div>
                   <div style={{ width: '80px' }}>
                     <label>Icono</label>
                     <input type="text" name="icon" value={submitData.icon} onChange={handleFormChange} maxLength={2} className="glass-input" style={{ width: '100%', marginTop: '8px', textAlign: 'center', fontSize: '1.2rem', padding: '10px' }} />
                   </div>
+                </div>
+                <div className="input-group">
+                  <label>Descripción Corta</label>
+                  <textarea name="description" value={submitData.description} onChange={handleFormChange} placeholder="Describe qué hace tu app..." className="glass-input" style={{ width: '100%', marginTop: '8px', minHeight: '80px', resize: 'none' }} />
                 </div>
               </div>
             </div>
