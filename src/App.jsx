@@ -221,6 +221,19 @@ function App() {
     }
   };
 
+  // Auto-detect al escribir el link (con debounce ligero)
+  useEffect(() => {
+    if (!submitData.link || isEditing) return;
+
+    // Solo si parece una URL válida y ha cambiado
+    if (submitData.link.startsWith('http')) {
+      const timer = setTimeout(() => {
+        handleExtractManifest();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitData.link]);
+
   const handleDeleteApp = async (id) => {
     if (window.confirm("¿Estás seguro de que quieres eliminar esta aplicación para SIEMPRE de la nube?")) {
       try {
@@ -474,7 +487,7 @@ function App() {
                 </div>
                 <div className="small-apps-list">
                   {appsList.slice(0, 6).map((app, index) => (
-                    <div key={app.id} className="small-app-item" onClick={() => handleOpenApp(app)}>
+                    <div key={`trend-${app.id || app.name}-${index}`} className="small-app-item" onClick={() => handleOpenApp(app)}>
                       <AppIcon icon={app.icon} color={app.color} className="small-app-icon" />
                       <div className="small-app-details">
                         <h4>{app.name}</h4>
@@ -500,7 +513,7 @@ function App() {
                     </div>
                     <div className="apps-grid">
                       {categoryApps.slice(0, 5).map((app, index) => (
-                        <AppCard key={app.id} app={app} index={index} onOpen={handleOpenApp} renderStars={renderStars} />
+                        <AppCard key={`grid-${app.id || app.name}-${index}`} app={app} index={index} onOpen={handleOpenApp} renderStars={renderStars} />
                       ))}
                     </div>
                   </div>
@@ -576,10 +589,23 @@ function App() {
               <div className="submit-form">
                 <div className="input-group">
                   <label>URL de la Aplicación (PWA)</label>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <input type="text" name="link" value={submitData.link} onChange={handleFormChange} placeholder="http://mi-app.com" className="glass-input" style={{ flex: 1 }} />
-                    <button className="btn-extract" onClick={handleExtractManifest}>Auto-detect ⚡</button>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      name="link"
+                      value={submitData.link}
+                      onChange={handleFormChange}
+                      placeholder="http://mi-app.com"
+                      className="glass-input"
+                      style={{ flex: 1 }}
+                    />
+                    <div className="auto-detect-indicator" style={{ fontSize: '0.7rem', color: 'var(--accent-green)', opacity: submitData.link.startsWith('http') ? 0.8 : 0 }}>
+                      Auto-detecting... ⚡
+                    </div>
                   </div>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Pega el link y el sistema extraerá los datos automáticamente.
+                  </p>
                 </div>
 
                 <div className="input-group" style={{ display: 'flex', gap: '15px' }}>
