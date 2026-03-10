@@ -42,6 +42,7 @@ function App() {
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [selectedApp, setSelectedApp] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isDevMode, setIsDevMode] = useState(false);
   const [submitData, setSubmitData] = useState({ name: '', link: '', icon: '✨', description: '', category: 'Utilidad', image: '' });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,6 +94,14 @@ function App() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  useEffect(() => {
+    // Escuchar si la URL tiene el parámetro ?dev=true o si se pulsa una combinación
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('admin') === 'selva') {
+      setIsDevMode(true);
+    }
+  }, []);
+
   const filteredApps = appsList.filter(app => {
     const matchesCategory = activeCategory === 'Todos' || app.category === activeCategory;
     const matchesSearch = app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,7 +119,12 @@ function App() {
   };
 
   const handleOpenSubmit = () => {
-    setShowSubmitModal(true);
+    const password = prompt("Ingrese la clave de administrador para acceder al portal de Selva Store:");
+    if (password === "selva2026") { // Cambia esto a tu contraseña preferida
+      setShowSubmitModal(true);
+    } else {
+      alert("Acceso denegado.");
+    }
   };
 
   const handleFormChange = (e) => {
@@ -258,7 +272,9 @@ function App() {
         </div>
         <nav className="nav">
           <button className="nav-link active">Tienda</button>
-          <button className="nav-link" onClick={handleOpenSubmit}>Desarrollador</button>
+          {isDevMode && (
+            <button className="nav-link" onClick={handleOpenSubmit}>Desarrollador</button>
+          )}
           <div className="user-profile">
             <div className="avatar">JD</div>
           </div>
