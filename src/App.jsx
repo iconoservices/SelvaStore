@@ -80,7 +80,6 @@ function App() {
 
   useEffect(() => {
     // Sincronización en tiempo real con Firestore
-    // Ordenamos por fecha de creación (createdAt) descendente para que las nuevas salgan primero
     const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const dbApps = [];
@@ -88,12 +87,38 @@ function App() {
         dbApps.push({ id: doc.id, ...doc.data() });
       });
 
-      // ALGORITMO: Combinar dinámicas primero las de la DB (favor de usuario) y luego las estáticas
-      setAppsList([...dbApps, ...apps]);
+      // ALGORITMO DE MERGE ULTRA-RESILIENTE: 
+      // 1. Unimos todo (DB + Estáticas)
+      // 2. Filtramos por nombre único (Case insensitive)
+      // 3. Priorizamos siempre la versión de la DB (que viene primero en el array)
+      const allPossibleApps = [...dbApps, ...apps];
+      const uniqueApps = [];
+      const seenNames = new Set();
+
+      allPossibleApps.forEach(app => {
+        const nameLower = app.name.toLowerCase().trim();
+        if (!seenNames.has(nameLower)) {
+          uniqueApps.push(app);
+          seenNames.add(nameLower);
+        }
+      });
+
+      setAppsList(uniqueApps);
     }, (error) => {
       console.error("Error al sincronizar con Firestore:", error);
       const savedApps = JSON.parse(localStorage.getItem('selva_store_user_apps') || '[]');
-      setAppsList([...savedApps, ...apps]);
+      const allFallback = [...savedApps, ...apps];
+      const uniqueFallback = [];
+      const seenFallback = new Set();
+
+      allFallback.forEach(app => {
+        const nameLower = app.name.toLowerCase().trim();
+        if (!seenFallback.has(nameLower)) {
+          uniqueFallback.push(app);
+          seenFallback.add(nameLower);
+        }
+      });
+      setAppsList(uniqueFallback);
     });
 
     return () => unsubscribe();
@@ -345,24 +370,24 @@ function App() {
 
       <main className="content">
         <section className="hero-grid animate-fade-in">
-          <div className="hero-main glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'selvabeat'))}>
+          <div className="hero-main glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'selvabeat') || appsList[0])}>
             <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=1200" alt="Main Feature" />
             <div className="hero-overlay">
               <span className="badge-featured">Destacado</span>
-              <h2>SelvaBeat: Tu Música Sin Límites</h2>
-              <p>La experiencia auditiva más resiliente del ecosistema.</p>
+              <h2>{appsList.find(a => a.id === 'selvabeat')?.name || 'SelvaBeat'}</h2>
+              <p>{appsList.find(a => a.id === 'selvabeat')?.description || 'Tu música sin límites.'}</p>
               <button className="btn-primary">Explorar</button>
             </div>
           </div>
           <div className="hero-side">
-            <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'selvaflix'))}>
+            <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'selvaflix') || appsList[1])}>
               <img src="https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=800" alt="Sub Feature 1" />
               <div className="hero-overlay small">
-                <h3>Netflix en Selva</h3>
+                <h3>{appsList.find(a => a.id === 'selvaflix')?.name || 'SelvaFlix'}</h3>
                 <button className="btn-glass-sm">Ver más</button>
               </div>
             </div>
-            <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'incflow'))}>
+            <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'incflow') || appsList[2])}>
               <img src="https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800" alt="Sub Feature 2" />
               <div className="hero-overlay small">
                 <h3>Domina tus Finanzas</h3>
