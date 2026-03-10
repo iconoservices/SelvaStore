@@ -53,6 +53,8 @@ function App() {
   const [view, setView] = useState('store'); // 'store' o 'admin'
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [showAdminPrompt, setShowAdminPrompt] = useState(false);
+  const [adminPass, setAdminPass] = useState('');
   const [submitData, setSubmitData] = useState({
     name: '',
     link: '',
@@ -157,11 +159,17 @@ function App() {
   };
 
   const handleOpenSubmit = () => {
-    const password = prompt("Ingrese la clave de administrador para acceder al panel de Selva Store:");
-    if (password === "selva2026") {
+    setShowAdminPrompt(true);
+  };
+
+  const handleAdminAuth = () => {
+    if (adminPass === "selva2026") {
       setView('admin');
+      setShowAdminPrompt(false);
+      setAdminPass('');
     } else {
-      alert("Acceso denegado.");
+      alert("Clave incorrecta 🌿");
+      setAdminPass('');
     }
   };
 
@@ -371,44 +379,45 @@ function App() {
           </div>
         </div>
         <nav className="nav">
-          <button className={`nav-link ${view === 'store' ? 'active' : ''}`} onClick={() => setView('store')}>Tienda</button>
-          {isDevMode && (
-            <button className={`nav-link ${view === 'admin' ? 'active' : ''}`} onClick={handleOpenSubmit}>Desarrollador</button>
-          )}
-          <div className="user-profile">
-            <div className="avatar">JD</div>
+          <button className={`nav-link ${view === 'store' && activeCategory === 'Todos' ? 'active' : ''}`} onClick={() => { setView('store'); setActiveCategory('Todos'); setSearchTerm(''); }}>Tienda</button>
+          <button className={`nav-link ${activeCategory === 'Entretenimiento' ? 'active' : ''}`} onClick={() => { setView('store'); setActiveCategory('Entretenimiento'); setSearchTerm(''); }}>Juegos</button>
+          <button className={`nav-link ${activeCategory === 'Utilidad' ? 'active' : ''}`} onClick={() => { setView('store'); setActiveCategory('Utilidad'); setSearchTerm(''); }}>Apps</button>
+          <div className="user-profile" onClick={handleOpenSubmit} title="Acceso de Desarrollador">
+            <div className="avatar">{view === 'admin' ? '⚙️' : 'JD'}</div>
           </div>
         </nav>
       </header>
 
       <main className="content">
-        <section className="hero-grid animate-fade-in">
-          <div className="hero-main glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'selvabeat') || appsList[0])}>
-            <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=1200" alt="Main Feature" />
-            <div className="hero-overlay">
-              <span className="badge-featured">Destacado</span>
-              <h2>{appsList.find(a => a.id === 'selvabeat')?.name || 'SelvaBeat'}</h2>
-              <p>{appsList.find(a => a.id === 'selvabeat')?.description || 'Tu música sin límites.'}</p>
-              <button className="btn-primary">Explorar</button>
-            </div>
-          </div>
-          <div className="hero-side">
-            <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'selvaflix') || appsList[1])}>
-              <img src="https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=800" alt="Sub Feature 1" />
-              <div className="hero-overlay small">
-                <h3>{appsList.find(a => a.id === 'selvaflix')?.name || 'SelvaFlix'}</h3>
-                <button className="btn-glass-sm">Ver más</button>
+        {activeCategory === 'Todos' && !searchTerm && view === 'store' && (
+          <section className="hero-grid animate-fade-in">
+            <div className="hero-main glass-container" onClick={() => handleOpenApp(appsList.find(a => a.name.toLowerCase().includes('selvabeat')) || appsList[0])}>
+              <img src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=1200" alt="Main Feature" />
+              <div className="hero-overlay">
+                <span className="badge-featured">Destacado</span>
+                <h2>{appsList.find(a => a.name.toLowerCase().includes('selvabeat'))?.name || 'SelvaBeat'}</h2>
+                <p>{appsList.find(a => a.name.toLowerCase().includes('selvabeat'))?.description || 'Tu música sin límites.'}</p>
+                <button className="btn-primary">Explorar</button>
               </div>
             </div>
-            <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.id === 'incflow') || appsList[2])}>
-              <img src="https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800" alt="Sub Feature 2" />
-              <div className="hero-overlay small">
-                <h3>Domina tus Finanzas</h3>
-                <button className="btn-glass-sm">Ver más</button>
+            <div className="hero-side">
+              <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.name.toLowerCase().includes('selvaflix')) || appsList[1])}>
+                <img src="https://images.unsplash.com/photo-1594909122845-11baa439b7bf?auto=format&fit=crop&q=80&w=800" alt="Sub Feature 1" />
+                <div className="hero-overlay small">
+                  <h3>{appsList.find(a => a.name.toLowerCase().includes('selvaflix'))?.name || 'SelvaFlix'}</h3>
+                  <button className="btn-glass-sm">Ver más</button>
+                </div>
+              </div>
+              <div className="hero-sub glass-container" onClick={() => handleOpenApp(appsList.find(a => a.name.toLowerCase().includes('incflow')) || appsList[2])}>
+                <img src="https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=800" alt="Sub Feature 2" />
+                <div className="hero-overlay small">
+                  <h3>{appsList.find(a => a.name.toLowerCase().includes('incflow'))?.name || 'INCFlow'}</h3>
+                  <button className="btn-glass-sm">Ver más</button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="store-section">
           {view === 'admin' ? (
@@ -479,29 +488,45 @@ function App() {
             </div>
           ) : (
             <>
-              {/* Sección: Tendencias (Formato Pequeño) */}
-              <div className="home-category-row">
-                <div className="section-header">
-                  <h3>Tendencias en aplicaciones</h3>
-                  <button className="btn-text">Ver todo {'>'}</button>
-                </div>
-                <div className="small-apps-list">
-                  {appsList.slice(0, 6).map((app, index) => (
-                    <div key={`trend-${app.id || app.name}-${index}`} className="small-app-item" onClick={() => handleOpenApp(app)}>
-                      <AppIcon icon={app.icon} color={app.color} className="small-app-icon" />
-                      <div className="small-app-details">
-                        <h4>{app.name}</h4>
-                        <span className="small-app-cat">{app.category}</span>
-                        {renderStars(app.rating)}
-                      </div>
-                      <span className="small-app-price">Gratis</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+               {/* Barra de Filtros en Tienda */}
+               {view === 'store' && !searchTerm && (
+                 <div className="category-filter-bar animate-fade-in" style={{ marginBottom: '30px', display: 'flex', gap: '15px' }}>
+                   {categories.map(cat => (
+                     <button 
+                       key={cat} 
+                       className={`filter-btn ${activeCategory === cat ? 'active' : ''}`}
+                       onClick={() => setActiveCategory(cat)}
+                     >
+                       {cat}
+                     </button>
+                   ))}
+                 </div>
+               )}
 
-              {/* Secciones por Categoría (Formato Estándar) */}
-              {categories.filter(c => c !== 'Todos').map(category => {
+              {/* Sección: Tendencias (Solo si es 'Todos') */}
+              {activeCategory === 'Todos' && (
+                <div className="home-category-row">
+                  <div className="section-header">
+                    <h3>Tendencias en aplicaciones</h3>
+                  </div>
+                  <div className="small-apps-list">
+                    {appsList.slice(0, 6).map((app, index) => (
+                      <div key={`trend-${app.id || app.name}-${index}`} className="small-app-item" onClick={() => handleOpenApp(app)}>
+                        <AppIcon icon={app.icon} color={app.color} className="small-app-icon" />
+                        <div className="small-app-details">
+                          <h4>{app.name}</h4>
+                          <span className="small-app-cat">{app.category}</span>
+                          {renderStars(app.rating)}
+                        </div>
+                        <span className="small-app-price">Gratis</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Secciones por Categoría */}
+              {categories.filter(c => c !== 'Todos' && (activeCategory === 'Todos' || activeCategory === c)).map(category => {
                 const categoryApps = appsList.filter(a => a.category === category);
                 if (categoryApps.length === 0) return null;
 
@@ -509,10 +534,12 @@ function App() {
                   <div key={category} className="home-category-row">
                     <div className="section-header">
                       <h3>{category}</h3>
-                      <button className="btn-text">Más {'>'}</button>
+                      {activeCategory === 'Todos' && (
+                        <button className="btn-text" onClick={() => setActiveCategory(category)}>Más {'>'}</button>
+                      )}
                     </div>
                     <div className="apps-grid">
-                      {categoryApps.slice(0, 5).map((app, index) => (
+                      {(activeCategory === 'Todos' ? categoryApps.slice(0, 5) : categoryApps).map((app, index) => (
                         <AppCard key={`grid-${app.id || app.name}-${index}`} app={app} index={index} onOpen={handleOpenApp} renderStars={renderStars} />
                       ))}
                     </div>
@@ -572,6 +599,37 @@ function App() {
               >
                 Lanzar Aplicación
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdminPrompt && (
+        <div className="modal-overlay animate-fade-in" onClick={() => setShowAdminPrompt(false)}>
+          <div className="modal-content glass-container admin-login-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="logo-icon">🔒</span>
+              <h2>Zona Desarrollador</h2>
+              <button className="modal-close" onClick={() => setShowAdminPrompt(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>Esta área es exclusiva para administradores de Selva Store.</p>
+              <div className="input-group">
+                <label>Clave de Acceso</label>
+                <input 
+                  type="password" 
+                  value={adminPass} 
+                  onChange={(e) => setAdminPass(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdminAuth()}
+                  className="glass-input" 
+                  placeholder="••••••••"
+                  autoFocus
+                  style={{ width: '100%', marginTop: '10px', fontSize: '1.2rem', textAlign: 'center' }}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={handleAdminAuth} style={{ width: '100%' }}>Entrar al Panel</button>
             </div>
           </div>
         </div>
