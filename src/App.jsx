@@ -369,7 +369,7 @@ function App() {
 
       <header className="header glass-container animate-fade-in">
         <div className="logo">
-          <span className="logo-icon">🌿</span>
+          <img src="/icon-192.png" alt="Selva Store Logo" className="logo-icon" style={{ width: '32px', height: '32px', borderRadius: '8px' }} />
           <h1>Selva<span>Store</span></h1>
         </div>
         <div className="header-search">
